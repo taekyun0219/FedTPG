@@ -79,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=str, default="./DATA", help="path to dataset")
 
     parser.add_argument(
-        "--exp_name", type=str, default="cross_cls", help="cross_data, cross_data, cross_cls"
+        "--exp_name", type=str, default="cross_cls", help="cross_data, cross_domain, cross_cls"
     )
     parser.add_argument(
         "--model_name", type=str, default="fedtpg", help="fedtpg, coop, vlp"

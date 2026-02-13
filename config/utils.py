@@ -20,7 +20,7 @@ def reset_cfg(cfg, args):
         cfg.DATASET.NAME_SPACE = ["imagenet"]
         cfg.TRAIN.SPLIT = 'all'
         cfg.TEST.SPLIT = 'all'
-        cfg.DATASET.TESTNAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd', 'stanford_cars', 'sun397', 'eurosat']
+        cfg.DATASET.TESTNAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd', 'eurosat'] #except 'stanford_cars', 'sun397
     elif args.exp_name == "cross_domain":
         cfg.DATASET.NAME_SPACE = ["imagenet"]
         cfg.TRAIN.SPLIT = 'all'
