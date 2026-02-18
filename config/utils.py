@@ -45,6 +45,11 @@ def reset_cfg(cfg, args):
     cfg.MODEL.D_CTX = args.depth_ctx
     cfg.MODEL.N_CTX = args.n_ctx
     cfg.MODEL.DEPTH = args.model_depth
+    cfg.MODEL.NUM_PROMPTS = args.num_prompts
+    cfg.MODEL.TOP_K = args.top_k
+    cfg.MODEL.GATE_HIDDEN_DIM = args.gate_hidden_dim
+    cfg.MODEL.GATE_REG_WEIGHT = args.gate_reg_weight
+    cfg.MODEL.DIVERSITY_REG_WEIGHT = args.diversity_reg_weight
     cfg.MODEL.NAME = args.model_name
 
     cfg.DATALOADER.TRAIN.BATCH_SIZE = args.batch_size

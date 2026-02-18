@@ -20,6 +20,7 @@ from tqdm import tqdm
 from model.FedTPG import FedTPG,load_clip_to_cpu
 from model.custom_coop import CoOpCLIP
 from model.custom_vlp import VLPCLIP
+from model.FedMoPG import FedMoPG
 from dataloader.dm_federated import TestDataManager 
 from federated.utils import *
 import copy
@@ -76,6 +77,8 @@ class Server(TrainerBase):
             self.model = CoOpCLIP(cfg, clip_model,device = self.device)
         elif cfg.MODEL.NAME == 'vlp':
             self.model = VLPCLIP(cfg, clip_model,device = self.device)
+        elif cfg.MODEL.NAME == 'fedmopg':
+            self.model = FedMoPG(cfg, clip_model,device = self.device)
 
         print("Turning off gradients in both the image and the text encoder")
 
@@ -214,9 +217,16 @@ class Server(TrainerBase):
             classnames = client.available_classes
             dataname = client.data_name
             test_loader = client.test_loader
+            if self.model_name == "fedmopg":
+                # Share only federated prompt learner and keep client-local gating network.
+                client.model.prompt_learner.load_state_dict(self.model.prompt_learner.state_dict())
+                client.model.eval()
             for batch_idx, batch in enumerate(tqdm(test_loader)):
                 inputs, labels, cnames = self.parse_batch(batch)
-                outputs = self.model_inference(inputs, classnames, dataname)
+                if self.model_name == "fedmopg":
+                    outputs = client.model_inference(inputs, classnames, dataname)
+                else:
+                    outputs = self.model_inference(inputs, classnames, dataname)
                 self.evaluator.process(outputs, labels)
 
             results = self.evaluator.evaluate()
@@ -271,7 +281,6 @@ class Server(TrainerBase):
         elapsed = str(datetime.timedelta(seconds=elapsed))
 
         print(f"Elapsed: {elapsed}")
-
 
 
 

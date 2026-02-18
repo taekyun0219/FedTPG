@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from model.FedTPG import FedTPG
 from model.custom_coop import CoOpCLIP
 from model.custom_vlp import VLPCLIP
+from model.FedMoPG import FedMoPG
 from dataloader.dm_federated import TrainDataManager
 from federated.utils import *
 import torch.nn.functional as F
@@ -67,13 +68,20 @@ class Client(TrainerBase):
             self.model = CoOpCLIP(cfg, clip_model,device = self.device)
         elif cfg.MODEL.NAME == 'vlp':
             self.model = VLPCLIP(cfg, clip_model,device = self.device)
+        elif cfg.MODEL.NAME == 'fedmopg':
+            self.model = FedMoPG(cfg, clip_model,device = self.device)
 
         self.w = cfg.TRAIN.W
 
         print("Turning off gradients in both the image and the text encoder")
         for name, param in self.model.named_parameters():
-            if "prompt_learner" not in name:
-                param.requires_grad_(False)
+            if self.model_name == "fedmopg":
+                trainable = ("prompt_learner" in name) or ("gating_net" in name)
+                if not trainable:
+                    param.requires_grad_(False)
+            else:
+                if "prompt_learner" not in name:
+                    param.requires_grad_(False)
         enabled = set()
         for name, param in self.model.named_parameters():
             if param.requires_grad:
@@ -82,8 +90,11 @@ class Client(TrainerBase):
         self.model.to(self.device)
         # NOTE: only give prompt_learner to the optimizer
 
-        # params = ([p for p in self.model.prompt_learner.parameters()])
-        self.optim = build_optimizer(self.model.prompt_learner, cfg.OPTIM)
+        if self.model_name == "fedmopg":
+            params = list(self.model.prompt_learner.parameters()) + list(self.model.gating_net.parameters())
+            self.optim = build_optimizer(params, cfg.OPTIM)
+        else:
+            self.optim = build_optimizer(self.model.prompt_learner, cfg.OPTIM)
         self.sched = build_lr_scheduler(self.optim, cfg.OPTIM)
         self.register_model("prompt_learner", self.model.prompt_learner, self.optim, self.sched)
 

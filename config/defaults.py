@@ -65,6 +65,11 @@ _C.MODEL.D_CTX = 1 # number of layers with context vectors
 _C.MODEL.CTX_INIT = ""  # initialization words
 _C.MODEL.NAME = 'fedtpg'
 _C.MODEL.DEPTH = 0 # number of self-attention modules
+_C.MODEL.NUM_PROMPTS = 4 # number of generated prompts (G)
+_C.MODEL.TOP_K = 2 # top-k prompt experts selected by local gating
+_C.MODEL.GATE_HIDDEN_DIM = 256 # hidden dim of local gating MLP
+_C.MODEL.GATE_REG_WEIGHT = 1.0 # weight for gate load-balancing regularizer
+_C.MODEL.DIVERSITY_REG_WEIGHT = 1.0 # weight for prompt diversity regularizer
 ###########################
 # Optimization
 ###########################
@@ -113,8 +118,6 @@ _C.TEST.SPLIT = "new"
 # is unavailable, test data will be used)
 _C.TEST.FINAL_MODEL = "last_step"
 # _C.TEST.FINAL_MODEL = "best_val"
-
-
 
 
 

@@ -82,7 +82,7 @@ if __name__ == "__main__":
         "--exp_name", type=str, default="cross_cls", help="cross_data, cross_domain, cross_cls"
     )
     parser.add_argument(
-        "--model_name", type=str, default="fedtpg", help="fedtpg, coop, vlp"
+        "--model_name", type=str, default="fedtpg", help="fedtpg, coop, vlp, fedmopg"
     )
     parser.add_argument(
         "--num_shots", type=int, default=8, help="number of samples each class"
@@ -95,6 +95,21 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--n_ctx", type=int,default=4,help="length of ctx"
+    )
+    parser.add_argument(
+        "--num_prompts", type=int, default=4, help="number of generated prompts (G) for FedMoPG"
+    )
+    parser.add_argument(
+        "--top_k", type=int, default=2, help="top-k prompts selected by local gating in FedMoPG"
+    )
+    parser.add_argument(
+        "--gate_hidden_dim", type=int, default=256, help="hidden dimension of local gating MLP in FedMoPG"
+    )
+    parser.add_argument(
+        "--gate_reg_weight", type=float, default=1.0, help="weight for gate load-balancing regularizer in FedMoPG"
+    )
+    parser.add_argument(
+        "--diversity_reg_weight", type=float, default=1.0, help="weight for prompt diversity regularizer in FedMoPG"
     )
     parser.add_argument(
         "--num_epoch", type=int, default=500, help="number of running epochs"
