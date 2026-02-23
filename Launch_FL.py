@@ -61,8 +61,11 @@ def main(args):
     if args.eval_only:
         if args.model_name!='clip':
             fl_server.load_model(args.model_dir, epoch=args.load_epoch)
-            
-        # fl_server.local_test()
+
+        if args.model_name == "fedmopg":
+            fl_server.load_client_gating(args.model_dir)
+            fl_server.local_test()
+
         if fl_server.cfg.TEST.SPLIT== 'base&new':
             fl_server.test("base")
             fl_server.test("new")

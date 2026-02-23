@@ -65,7 +65,7 @@ class MultiCrossAttention(nn.Module):
         # data: [B, T, C], soft_prompt: [G, L, C]
             # B: batch size (here is 1)
             # G: number of prompts
-            # L: prompt length
+            # L: prompt_len * prompt_depth (Flattened length of prompts)
             # C: prompt dimension (channel, feature dim -> 512)
             # T: number of condition token (#classes)
         g = soft_prompt.shape[0]

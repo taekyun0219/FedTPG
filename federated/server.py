@@ -137,6 +137,39 @@ class Server(TrainerBase):
 
         self.clients[idx].load_meta(self.meta_net_glob.state_dict())
 
+    def save_client_gating(self, directory):
+        if self.model_name != "fedmopg":
+            return
+        save_dir = os.path.join(directory, "client_gating")
+        mkdir_if_missing(save_dir)
+        for client in self.clients:
+            fpath = os.path.join(save_dir, f"client_{client.client_id}.pth")
+            torch.save(
+                {
+                    "client_id": client.client_id,
+                    "state_dict": client.model.gating_net.state_dict(),
+                },
+                fpath,
+            )
+        print(f"Saved local gating checkpoints to {save_dir}")
+
+    def load_client_gating(self, directory):
+        if self.model_name != "fedmopg":
+            return
+        load_dir = os.path.join(directory, "client_gating")
+        loaded = 0
+        for client in self.clients:
+            fpath = os.path.join(load_dir, f"client_{client.client_id}.pth")
+            if not os.path.exists(fpath):
+                continue
+            checkpoint = torch.load(fpath, map_location=self.device)
+            client.model.gating_net.load_state_dict(checkpoint["state_dict"])
+            loaded += 1
+        if loaded == 0:
+            print(f"No local gating checkpoint found at {load_dir}")
+        else:
+            print(f"Loaded local gating checkpoints for {loaded}/{len(self.clients)} clients from {load_dir}")
+
     def train(self):
         self.before_train()
         self.meta_net_glob = copy.deepcopy(self.model.prompt_learner)
@@ -261,6 +294,7 @@ class Server(TrainerBase):
         last_epoch = (self.epoch + 1) == self.max_epoch
         if last_epoch:
             self.save_model(self.epoch, self.output_dir)
+            self.save_client_gating(self.output_dir)
         do_test = not self.cfg.TEST.NO_TEST
         if do_test:
             if self.cfg.TEST.FINAL_MODEL == "best_val":
@@ -281,6 +315,5 @@ class Server(TrainerBase):
         elapsed = str(datetime.timedelta(seconds=elapsed))
 
         print(f"Elapsed: {elapsed}")
-
 
 
