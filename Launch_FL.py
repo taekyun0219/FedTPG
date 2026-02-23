@@ -64,13 +64,19 @@ def main(args):
 
         if args.model_name == "fedmopg":
             fl_server.load_client_gating(args.model_dir)
-            fl_server.local_test()
-
-        if fl_server.cfg.TEST.SPLIT== 'base&new':
-            fl_server.test("base")
-            fl_server.test("new")
+            if fl_server.cfg.TEST.DO_LOCAL_TEST:
+                fl_server.local_test()
+            if fl_server.cfg.TEST.SPLIT == 'base&new':
+                fl_server.personalized_test("base")
+                fl_server.personalized_test("new")
+            else:
+                fl_server.personalized_test(fl_server.cfg.TEST.SPLIT)
         else:
-            fl_server.test(fl_server.cfg.TEST.SPLIT)
+            if fl_server.cfg.TEST.SPLIT== 'base&new':
+                fl_server.test("base")
+                fl_server.test("new")
+            else:
+                fl_server.test(fl_server.cfg.TEST.SPLIT)
         return
 
     if not args.no_train:
@@ -137,7 +143,7 @@ if __name__ == "__main__":
         "--seed", type=int, default=43, help="only positive value enables a fixed seed"
     )
     parser.add_argument(
-        "--w", type=int, default=0, help="weight of regularization for KgCoOp"
+        "--w", type=int, default=0, help="weight of regularization for KgCoOp and also for FedMoPG"
     )
     parser.add_argument("--backbone", type=str, default="ViT-B/16", help="name of CNN backbone")
     parser.add_argument("--eval-only", action="store_true", help="evaluation only")
@@ -156,6 +162,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--per-class", action="store_true", help="do not call trainer.train()"
+    )
+    parser.add_argument(
+        "--skip-local-test", action="store_true", help="skip local_test() in eval/training summary"
     )
 
     args = parser.parse_args()

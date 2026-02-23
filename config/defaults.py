@@ -111,6 +111,8 @@ _C.TEST.PER_CLASS_RESULT = False
 _C.TEST.COMPUTE_CMAT = False
 # If NO_TEST=True, no testing will be conducted
 _C.TEST.NO_TEST = False
+# If False, skip local_test() (client-wise in-domain evaluation)
+_C.TEST.DO_LOCAL_TEST = True
 # Use test or val set for FINAL evaluation
 _C.TEST.SPLIT = "new"
 # Which model to test after training (last_step or best_val)
@@ -118,7 +120,6 @@ _C.TEST.SPLIT = "new"
 # is unavailable, test data will be used)
 _C.TEST.FINAL_MODEL = "last_step"
 # _C.TEST.FINAL_MODEL = "best_val"
-
 
 
 

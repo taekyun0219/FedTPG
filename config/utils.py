@@ -56,3 +56,4 @@ def reset_cfg(cfg, args):
     cfg.TRAIN.NUM_CLASS_PER_CLIENT = args.num_cls_per_client
     cfg.TRAIN.AVAIL_PERCENT = args.avail_percent
     cfg.TRAIN.W = args.w
+    cfg.TEST.DO_LOCAL_TEST = (not args.skip_local_test)

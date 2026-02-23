@@ -239,6 +239,47 @@ class Server(TrainerBase):
         print(f"avg accuracy: {acc_mean}")
 
     @torch.no_grad()
+    def personalized_test(self, split):
+        """
+        FedMoPG personalized evaluation on test datasets:
+        for each test dataset, run inference with every client's local gating network,
+        then average client accuracies.
+        """
+        self.set_model_mode("eval")
+
+        dm = TestDataManager(self.cfg, split)
+        data_loaders = dm.test_loaders
+        datasets = dm.test_datasets
+
+        dataset_mean_accs = []
+        for i, data_loader in enumerate(data_loaders):
+            classnames = datasets[i].classnames
+            dataname = datasets[i].data_name
+            client_accs = []
+            print(f"Personalized eval on *{split}* set of {self.cfg.DATASET.TESTNAME_SPACE[i]}")
+
+            for client in self.clients:
+                self.evaluator.reset()
+                # Share global prompt learner, keep client-local gating.
+                client.model.prompt_learner.load_state_dict(self.model.prompt_learner.state_dict())
+                client.model.eval()
+
+                for batch in tqdm(data_loader):
+                    inputs, labels, _ = self.parse_batch(batch)
+                    outputs = client.model_inference(inputs, classnames, dataname)
+                    self.evaluator.process(outputs, labels)
+
+                results = self.evaluator.evaluate()
+                client_accs.append(list(results.values())[0])
+
+            mean_acc = np.mean(client_accs)
+            dataset_mean_accs.append(mean_acc)
+            print(f"personalized avg acc of {dataname} over {len(client_accs)} clients: {mean_acc}")
+
+        overall_mean = np.mean(dataset_mean_accs)
+        print(f"personalized avg accuracy across test datasets: {overall_mean}")
+
+    @torch.no_grad()
     def local_test(self):
         """A generic testing pipeline."""
         self.set_model_mode("eval")
@@ -303,17 +344,23 @@ class Server(TrainerBase):
             else:
                 print("Deploy the last-epoch model")
             # eval_based on each dataset
-            self.local_test()
+            if self.cfg.TEST.DO_LOCAL_TEST:
+                self.local_test()
             if self.cfg.TEST.SPLIT=='base&new':
-                self.test('base')
-                self.test('new')
+                if self.model_name == "fedmopg":
+                    self.personalized_test('base')
+                    self.personalized_test('new')
+                else:
+                    self.test('base')
+                    self.test('new')
             else:
-                self.test(self.cfg.TEST.SPLIT)
+                if self.model_name == "fedmopg":
+                    self.personalized_test(self.cfg.TEST.SPLIT)
+                else:
+                    self.test(self.cfg.TEST.SPLIT)
 
         # Show elapsed time
         elapsed = round(time.time() - self.time_start)
         elapsed = str(datetime.timedelta(seconds=elapsed))
 
         print(f"Elapsed: {elapsed}")
-
-

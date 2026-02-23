@@ -172,6 +172,10 @@ class FedMoPG(nn.Module):
     def _prompt_diversity_regularizer(self, text_ctx_pool):
         """
         text_ctx_pool: [G, D_CTX, N_CTX, C]
+        G: number of prompts (ex. 4)
+        D_CTX: number of layers (ex. 1) = number of transformer depth 
+        N_CTX: number of context tokens (ex. 4)
+        C: prompt embedding dimension (ex. 512)
         Penalize pairwise cosine similarity among prompt experts.
         """
         g = text_ctx_pool.shape[0]
