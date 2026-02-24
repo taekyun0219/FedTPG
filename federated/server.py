@@ -258,11 +258,16 @@ class Server(TrainerBase):
             client_accs = []
             print(f"Personalized eval on *{split}* set of {self.cfg.DATASET.TESTNAME_SPACE[i]}")
 
-            for client in self.clients:
+            for client_idx, client in enumerate(self.clients):
                 self.evaluator.reset()
                 # Share global prompt learner, keep client-local gating.
                 client.model.prompt_learner.load_state_dict(self.model.prompt_learner.state_dict())
                 client.model.eval()
+                print(
+                    f"[personalized_test] dataset={dataname} "
+                    f"client={client_idx + 1}/{len(self.clients)} "
+                    f"(id={client.client_id})"
+                )
 
                 for batch in tqdm(data_loader):
                     inputs, labels, _ = self.parse_batch(batch)

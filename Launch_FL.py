@@ -143,7 +143,7 @@ if __name__ == "__main__":
         "--seed", type=int, default=43, help="only positive value enables a fixed seed"
     )
     parser.add_argument(
-        "--w", type=int, default=0, help="weight of regularization for KgCoOp and also for FedMoPG"
+        "--w", type=float, default=0, help="weight of regularization for KgCoOp and also for FedMoPG"
     )
     parser.add_argument("--backbone", type=str, default="ViT-B/16", help="name of CNN backbone")
     parser.add_argument("--eval-only", action="store_true", help="evaluation only")
