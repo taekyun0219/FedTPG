@@ -107,12 +107,10 @@ class Client(TrainerBase):
         classnames = self.available_classes
         # batch = next(iter(self.train_loader))
         for batch in self.train_loader:
-            loss,acc = self.forward_backward(batch,dataname,classnames)
+            loss, acc, loss_terms = self.forward_backward(batch, dataname, classnames)
             self.model_backward_and_update(loss)
-        loss_summary = {
-            "loss": loss.item(),
-            "acc": acc,
-        }
+        loss_summary = {"loss": loss.item(), "acc": acc}
+        loss_summary.update(loss_terms)
         losses.update(loss_summary)
 
         info = []
@@ -148,9 +146,41 @@ class Client(TrainerBase):
     def forward_backward(self, batch, dataname,classnames):
         images, labels,cnames = self.parse_batch(batch)
 
-        output, score = self.model(images,classnames, dataname)
-        loss = F.cross_entropy(output, labels) + self.w*score
-        return loss,compute_accuracy(output, labels)[0].item()
+        model_out = self.model(images, classnames, dataname)
+        ce_loss = F.cross_entropy(model_out[0], labels)
+
+        if self.model_name == "fedmopg":
+            output = model_out[0]
+            reg_total = model_out[1]
+            reg_terms = model_out[2] if len(model_out) > 2 else {}
+            gate_reg = reg_terms.get("gate_reg", torch.zeros_like(reg_total))
+            diversity_reg = reg_terms.get("diversity_reg", torch.zeros_like(reg_total))
+            weighted_reg = self.w * reg_total
+            loss = ce_loss + weighted_reg
+            ratio = weighted_reg.detach() / (ce_loss.detach() + 1e-12)
+            loss_terms = {
+                "ce_loss": ce_loss.item(),
+                "gate_reg": gate_reg.item(),
+                "div_reg": diversity_reg.item(),
+                "reg_total": reg_total.item(),
+                "weighted_reg": weighted_reg.item(),
+                "reg_ce_ratio": ratio.item(),
+                "total_loss": loss.item(),
+            }
+        else:
+            output = model_out[0]
+            loss = ce_loss
+            loss_terms = {
+                "ce_loss": ce_loss.item(),
+                "gate_reg": 0.0,
+                "div_reg": 0.0,
+                "reg_total": 0.0,
+                "weighted_reg": 0.0,
+                "reg_ce_ratio": 0.0,
+                "total_loss": loss.item(),
+            }
+
+        return loss, compute_accuracy(output, labels)[0].item(), loss_terms
 
     def parse_batch(self, batch):
         input = batch["img"]

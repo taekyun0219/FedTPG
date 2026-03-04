@@ -20,17 +20,19 @@ def reset_cfg(cfg, args):
         cfg.DATASET.NAME_SPACE = ["imagenet"]
         cfg.TRAIN.SPLIT = 'all'
         cfg.TEST.SPLIT = 'all'
-        cfg.DATASET.TESTNAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd', 'eurosat'] #except 'stanford_cars', 'sun397
+        cfg.DATASET.TESTNAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd'] #except 'stanford_cars', 'sun397', 'eurosat'
     elif args.exp_name == "cross_domain":
         cfg.DATASET.NAME_SPACE = ["imagenet"]
         cfg.TRAIN.SPLIT = 'all'
         cfg.TEST.SPLIT = 'all'
         cfg.DATASET.TESTNAME_SPACE =['imagenet-v2','imagenet-s','imagenet-a','imagenet-r','imagenet']
     elif args.exp_name == "cross_cls":
-        cfg.DATASET.NAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd', 'stanford_cars', 'sun397']
+        #cfg.DATASET.NAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd'] #except 'stanford_cars', 'sun397', 'eurosat'
+        cfg.DATASET.NAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd'] #except 'stanford_cars', 'sun397', 'eurosat'
         cfg.TRAIN.SPLIT = 'base'
         cfg.TEST.SPLIT = 'base&new'
-        cfg.DATASET.TESTNAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd', 'stanford_cars', 'sun397']
+        #cfg.DATASET.TESTNAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd'] #except 'stanford_cars', 'sun397', 'eurosat'
+        cfg.DATASET.TESTNAME_SPACE = ['caltech101', 'oxford_flowers', 'fgvc_aircraft', 'ucf101', 'oxford_pets', 'food101', 'dtd'] #except 'stanford_cars', 'sun397', 'eurosat'
 
 
     cfg.DATASET.ROOT = args.root
@@ -56,4 +58,5 @@ def reset_cfg(cfg, args):
     cfg.TRAIN.NUM_CLASS_PER_CLIENT = args.num_cls_per_client
     cfg.TRAIN.AVAIL_PERCENT = args.avail_percent
     cfg.TRAIN.W = args.w
+    cfg.TEST.EVAL_MODE = args.eval_mode
     cfg.TEST.DO_LOCAL_TEST = (not args.skip_local_test)

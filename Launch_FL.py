@@ -16,6 +16,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
 import torch
+import time
 from config.defaults import _C as cfg_default
 from config.utils import reset_cfg
 from utils import setup_logger
@@ -48,7 +49,15 @@ def setup_cfg(args):
 def main(args):
     cfg = setup_cfg(args)
 
-    setup_logger(os.path.join(cfg.OUTPUT_DIR,cfg.EXP_NAME,cfg.MODEL.NAME,str(cfg.TRAIN.NUM_CLASS_PER_CLIENT)+"_"+str(cfg.DATASET.NUM_SHOTS),str(cfg.SEED)))
+    log_dir = os.path.join(
+        cfg.OUTPUT_DIR,
+        cfg.EXP_NAME,
+        cfg.MODEL.NAME,
+        str(cfg.TRAIN.NUM_CLASS_PER_CLIENT) + "_" + str(cfg.DATASET.NUM_SHOTS),
+        str(cfg.SEED),
+    )
+    log_path = os.path.join(log_dir, f"log.txt-{time.strftime('%Y-%m-%d-%H-%M-%S')}")
+    setup_logger(log_path)
 
     if torch.cuda.is_available() and cfg.USE_CUDA:
         torch.backends.cudnn.benchmark = True
@@ -57,26 +66,39 @@ def main(args):
 
     fl_server = Server(cfg)
 
+    def run_eval(split):
+        mode = fl_server.cfg.TEST.EVAL_MODE
+        if mode == "default":
+            if fl_server.model_name == "fedmopg":
+                fl_server.personalized_test(split)
+            else:
+                fl_server.test(split)
+            return
+
+        if mode in ("global", "both"):
+            fl_server.test(split)
+        if mode in ("personalized", "both"):
+            if fl_server.model_name == "fedmopg":
+                fl_server.personalized_test(split)
+            else:
+                print(f"[eval_mode={mode}] personalized_test is only supported for fedmopg; skip model={fl_server.model_name}")
+
 
     if args.eval_only:
         if args.model_name!='clip':
             fl_server.load_model(args.model_dir, epoch=args.load_epoch)
 
-        if args.model_name == "fedmopg":
+        if args.model_name == "fedmopg" and fl_server.cfg.TEST.EVAL_MODE in ("default", "personalized", "both"):
             fl_server.load_client_gating(args.model_dir)
-            if fl_server.cfg.TEST.DO_LOCAL_TEST:
-                fl_server.local_test()
-            if fl_server.cfg.TEST.SPLIT == 'base&new':
-                fl_server.personalized_test("base")
-                fl_server.personalized_test("new")
-            else:
-                fl_server.personalized_test(fl_server.cfg.TEST.SPLIT)
+
+        if fl_server.cfg.TEST.DO_LOCAL_TEST:
+            fl_server.local_test()
+
+        if fl_server.cfg.TEST.SPLIT == 'base&new':
+            run_eval("base")
+            run_eval("new")
         else:
-            if fl_server.cfg.TEST.SPLIT== 'base&new':
-                fl_server.test("base")
-                fl_server.test("new")
-            else:
-                fl_server.test(fl_server.cfg.TEST.SPLIT)
+            run_eval(fl_server.cfg.TEST.SPLIT)
         return
 
     if not args.no_train:
@@ -165,6 +187,13 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--skip-local-test", action="store_true", help="skip local_test() in eval/training summary"
+    )
+    parser.add_argument(
+        "--eval-mode",
+        type=str,
+        default="default",
+        choices=["default", "global", "personalized", "both"],
+        help="evaluation mode: default(model-specific), global, personalized, both",
     )
 
     args = parser.parse_args()

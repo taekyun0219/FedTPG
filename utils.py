@@ -88,7 +88,10 @@ def setup_logger(output=None):
     if output is None:
         return
 
-    if output.endswith(".txt") or output.endswith(".log"):
+    basename = os.path.basename(output)
+    is_timestamped_text_log = basename.startswith("log.txt-") or basename.startswith("log.log-")
+
+    if output.endswith(".txt") or output.endswith(".log") or is_timestamped_text_log:
         fpath = output
     else:
         fpath = os.path.join(output, "log.txt")

@@ -115,11 +115,12 @@ _C.TEST.NO_TEST = False
 _C.TEST.DO_LOCAL_TEST = True
 # Use test or val set for FINAL evaluation
 _C.TEST.SPLIT = "new"
+# Evaluation mode: default, global, personalized, both
+_C.TEST.EVAL_MODE = "default"
 # Which model to test after training (last_step or best_val)
 # If best_val, evaluation is done every epoch (if val data
 # is unavailable, test data will be used)
 _C.TEST.FINAL_MODEL = "last_step"
 # _C.TEST.FINAL_MODEL = "best_val"
-
 
 

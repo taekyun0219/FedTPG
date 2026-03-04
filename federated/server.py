@@ -113,7 +113,11 @@ class Server(TrainerBase):
             elif cfg.TRAIN.SPLIT =='all':
                 m = dataset_classnum[dataname]
             all_cls_idx = np.arange(m)
-            num_client_dataset = np.around(m/num_class_per_client).astype(int)
+            if self.model_name == "fedmopg":
+                # FedMoPG: avoid under-partitioning classes when m is not divisible by num_class_per_client.
+                num_client_dataset = math.ceil(m / num_class_per_client)
+            else:
+                num_client_dataset = np.around(m/num_class_per_client).astype(int)
             if num_client_dataset==0:
                 num_client_dataset = 1
             current_num_clients = last_num_clients+num_client_dataset
@@ -177,8 +181,13 @@ class Server(TrainerBase):
 
             self.epoch = epoch
 
-            num_selected = max(int(self.cfg.TRAIN.AVAIL_PERCENT * self.num_clients), 1)
+            if self.model_name == "fedmopg":
+                num_selected = max(math.ceil(self.cfg.TRAIN.AVAIL_PERCENT * self.num_clients), 1)
+            else:
+                num_selected = max(int(self.cfg.TRAIN.AVAIL_PERCENT * self.num_clients), 1)
             idxs_users = np.random.choice(range(len(self.clients)), num_selected, replace=False)
+            if self.model_name == "fedmopg":
+                print(f"[Round {epoch + 1}] selected {num_selected}/{self.num_clients} clients")
 
             w_glob = None
             # updates = []
@@ -216,6 +225,8 @@ class Server(TrainerBase):
     def test(self,split):
         """A generic testing pipeline."""
         self.set_model_mode("eval")
+        if self.model_name == "fedmopg":
+            self.model.eval()
 
         dm = TestDataManager(self.cfg,split)
         data_loaders = dm.test_loaders
@@ -246,6 +257,8 @@ class Server(TrainerBase):
         then average client accuracies.
         """
         self.set_model_mode("eval")
+        if self.model_name == "fedmopg":
+            self.model.eval()
 
         dm = TestDataManager(self.cfg, split)
         data_loaders = dm.test_loaders
@@ -258,16 +271,17 @@ class Server(TrainerBase):
             client_accs = []
             print(f"Personalized eval on *{split}* set of {self.cfg.DATASET.TESTNAME_SPACE[i]}")
 
-            for client_idx, client in enumerate(self.clients):
+            # Personalization should be measured with clients from the same dataset/domain.
+            matched_clients = [c for c in self.clients if c.data_name.lower() == dataname.lower()]
+            if len(matched_clients) == 0:
+                print(f"No matched clients for dataset={dataname}, skip personalized evaluation on this dataset.")
+                continue
+
+            for client in matched_clients:
                 self.evaluator.reset()
                 # Share global prompt learner, keep client-local gating.
                 client.model.prompt_learner.load_state_dict(self.model.prompt_learner.state_dict())
                 client.model.eval()
-                print(
-                    f"[personalized_test] dataset={dataname} "
-                    f"client={client_idx + 1}/{len(self.clients)} "
-                    f"(id={client.client_id})"
-                )
 
                 for batch in tqdm(data_loader):
                     inputs, labels, _ = self.parse_batch(batch)
@@ -281,6 +295,9 @@ class Server(TrainerBase):
             dataset_mean_accs.append(mean_acc)
             print(f"personalized avg acc of {dataname} over {len(client_accs)} clients: {mean_acc}")
 
+        if len(dataset_mean_accs) == 0:
+            print("No dataset produced personalized results.")
+            return
         overall_mean = np.mean(dataset_mean_accs)
         print(f"personalized avg accuracy across test datasets: {overall_mean}")
 
@@ -288,6 +305,8 @@ class Server(TrainerBase):
     def local_test(self):
         """A generic testing pipeline."""
         self.set_model_mode("eval")
+        if self.model_name == "fedmopg":
+            self.model.eval()
         acc_dict = {}
 
         for i, client in enumerate(self.clients):
@@ -321,6 +340,23 @@ class Server(TrainerBase):
             print(f"avg acc of {key}: {np.mean(acc_dict[key])}")
         print(f"avg local accuracy: {np.mean(acc_list)}")
 
+    def run_eval_split(self, split):
+        mode = self.cfg.TEST.EVAL_MODE
+        if mode == "default":
+            if self.model_name == "fedmopg":
+                self.personalized_test(split)
+            else:
+                self.test(split)
+            return
+
+        if mode in ("global", "both"):
+            self.test(split)
+        if mode in ("personalized", "both"):
+            if self.model_name == "fedmopg":
+                self.personalized_test(split)
+            else:
+                print(f"[eval_mode={mode}] personalized_test is only supported for fedmopg; skip model={self.model_name}")
+
     def before_train(self):
         directory = self.output_dir
         if self.cfg.RESUME:
@@ -351,18 +387,11 @@ class Server(TrainerBase):
             # eval_based on each dataset
             if self.cfg.TEST.DO_LOCAL_TEST:
                 self.local_test()
-            if self.cfg.TEST.SPLIT=='base&new':
-                if self.model_name == "fedmopg":
-                    self.personalized_test('base')
-                    self.personalized_test('new')
-                else:
-                    self.test('base')
-                    self.test('new')
+            if self.cfg.TEST.SPLIT == 'base&new':
+                self.run_eval_split('base')
+                self.run_eval_split('new')
             else:
-                if self.model_name == "fedmopg":
-                    self.personalized_test(self.cfg.TEST.SPLIT)
-                else:
-                    self.test(self.cfg.TEST.SPLIT)
+                self.run_eval_split(self.cfg.TEST.SPLIT)
 
         # Show elapsed time
         elapsed = round(time.time() - self.time_start)

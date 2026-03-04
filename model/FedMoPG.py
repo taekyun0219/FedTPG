@@ -127,6 +127,8 @@ class FedMoPG(nn.Module):
         self.top_k = max(1, min(cfg.MODEL.TOP_K, self.num_prompts))
         self.gate_reg_weight = cfg.MODEL.GATE_REG_WEIGHT
         self.diversity_reg_weight = cfg.MODEL.DIVERSITY_REG_WEIGHT
+        self.debug_print_every = 1
+        self._train_step = 0
 
     def set_prompt_prefix(self):
         self.n_ctx = self.cfg.MODEL.N_CTX
@@ -189,9 +191,17 @@ class FedMoPG(nn.Module):
         off_diag = sim[~eye]
         return (off_diag ** 2).mean()
 
+    def _prompt_similarity_matrix(self, text_ctx_pool):
+        g = text_ctx_pool.shape[0]
+        prompt_flat = text_ctx_pool.reshape(g, -1).float()
+        prompt_flat = F.normalize(prompt_flat, dim=-1)
+        return prompt_flat @ prompt_flat.t()
+
     def forward(self, image, classnames, dataname):
         del dataname
         classnames = [name.replace("_", " ") for name in classnames]
+        if self.training:
+            self._train_step += 1
 
         # Client-specific condition embedding from raw class names.
         prompts_ = torch.cat([clip.tokenize(p) for p in classnames]).to(self.device)
@@ -209,6 +219,22 @@ class FedMoPG(nn.Module):
         topk_probs, topk_indices = torch.topk(gate_probs, k=self.top_k, dim=-1)
         topk_weights = topk_probs / topk_probs.sum()
 
+        if self.training and self.debug_print_every > 0 and (self._train_step % self.debug_print_every == 0):
+            with torch.no_grad():
+                sim = self._prompt_similarity_matrix(text_ctx_pool)
+                g = sim.shape[0]
+                eye = torch.eye(g, device=sim.device, dtype=torch.bool)
+                off_diag = sim[~eye]
+                print(
+                    f"[FedMoPG Debug][step={self._train_step}] "
+                    f"gate_probs={gate_probs.detach().cpu().tolist()} "
+                    f"topk_indices={topk_indices.detach().cpu().tolist()} "
+                    f"topk_weights={topk_weights.detach().cpu().tolist()} "
+                    f"offdiag_min={off_diag.min().item():.4f} "
+                    f"offdiag_max={off_diag.max().item():.4f}"
+                )
+                print(f"[FedMoPG Debug][step={self._train_step}] prompt_sim_matrix={sim.detach().cpu().tolist()}")
+
         image_features = self.image_encoder(image.type(self.dtype))
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
@@ -222,4 +248,8 @@ class FedMoPG(nn.Module):
         gate_reg = self._gate_regularizer(gate_probs)
         diversity_reg = self._prompt_diversity_regularizer(text_ctx_pool)
         reg = self.gate_reg_weight * gate_reg + self.diversity_reg_weight * diversity_reg
-        return logits, reg
+        reg_terms = {
+            "gate_reg": gate_reg,
+            "diversity_reg": diversity_reg,
+        }
+        return logits, reg, reg_terms

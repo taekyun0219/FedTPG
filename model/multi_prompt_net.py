@@ -64,10 +64,10 @@ class MultiCrossAttention(nn.Module):
     def forward(self, data, soft_prompt, mask=None):
         # data: [B, T, C], soft_prompt: [G, L, C]
             # B: batch size (here is 1)
+            # T: number of condition token (#classes)
             # G: number of prompts
             # L: prompt_len * prompt_depth (Flattened length of prompts)
             # C: prompt dimension (channel, feature dim -> 512)
-            # T: number of condition token (#classes)
         g = soft_prompt.shape[0]
         if data.shape[0] == 1 and g > 1:
             data = repeat(data, "1 t c -> g t c", g=g)

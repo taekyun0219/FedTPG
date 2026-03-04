@@ -149,7 +149,7 @@ class CoOpCLIP(nn.Module):
 
 
         classnames = [name.replace("_", " ") for name in classnames]
-        text_features = self.encode_text(classnames, dataname)
+        text_features = self.encode_text(classnames)
         # [N,512]
 
         temp = CUSTOM_TEMPLATES[dataname]
@@ -200,4 +200,3 @@ class CoOpCLIP(nn.Module):
 
         text_features = self.text_encoder(prompt_vectors, tokenized_prompts)
         return text_features
-
